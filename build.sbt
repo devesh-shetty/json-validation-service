@@ -13,6 +13,8 @@ lazy val root = (project in file("."))
   .settings(
     libraryDependencies ++= Seq(
       guice,
-      "net.logstash.logback" % "logstash-logback-encoder" % "6.3",
+      "com.github.java-json-tools" % "json-schema-validator" % "2.2.13",
+      "org.scalatestplus.play" %% "scalatestplus-play" % "5.0.0" % Test,
+      "org.mockito" % "mockito-scala_2.13" % "1.11.4" % Test,
     )
   )
