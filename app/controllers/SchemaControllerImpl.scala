@@ -2,40 +2,51 @@ package controllers
 
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.google.inject.{Inject, Singleton}
+import model.Schema
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{JsPath, Json, Writes}
 import play.api.mvc.{AbstractController, Action, AnyContent}
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 @Singleton
 private[controllers] final class SchemaControllerImpl @Inject()(scc: SchemaControllerComponents) extends AbstractController(scc) with SchemaController {
-  override def index: Action[AnyContent] = Action { request =>
-    Ok(s"Hello world: $request")
-  }
-
-  override def echo(content: String): Action[AnyContent] = Action { request =>
-    Ok(s"Echoing $content $request")
-  }
-
   override def uploadSchema(schemaId: String): Action[AnyContent] = Action { request =>
-    def convertToResult(node: Try[JsonNode]) = node match {
-      case Success(_) =>
-        val response = Response(
-          action = ActionConstants.ACTION_UPLOAD,
-          id = schemaId,
-          status = ActionConstants.RESPONSE_SUCCESS,
-          message = None
-        )
-        Created(Json.toJson(response))
-      case Failure(_) =>
-        val response = Response(
-          action = ActionConstants.ACTION_UPLOAD,
-          id = schemaId,
-          status = ActionConstants.RESPONSE_ERROR,
-          message = Some(ActionConstants.RESPONSE_ERROR_INVALID_JSON_MESSAGE)
-        )
-        BadRequest(Json.toJson(response))
+    def convertToResult(node: Try[Option[JsonNode]]) = {
+      val optionalSchema = for {
+        jsonNode <- node.toOption.flatten
+        schema = Schema(schemaId, jsonNode)
+      } yield scc.schemaDao.save(schema)
+
+      optionalSchema match {
+        case Some(savedSchemaResult) =>
+          savedSchemaResult match {
+            case Left(_) =>
+              val response = Response(
+                action = ActionConstants.ACTION_UPLOAD,
+                id = schemaId,
+                status = ActionConstants.RESPONSE_ERROR,
+                message = Some(ActionConstants.RESPONSE_ERROR_FAILED_TO_UPLOAD_JSON_SCHEMA)
+              )
+              InternalServerError(Json.toJson(response))
+            case Right(_) =>
+              val response = Response(
+                action = ActionConstants.ACTION_UPLOAD,
+                id = schemaId,
+                status = ActionConstants.RESPONSE_SUCCESS,
+                message = None
+              )
+              Created(Json.toJson(response))
+          }
+        case None =>
+          val response = Response(
+            action = ActionConstants.ACTION_UPLOAD,
+            id = schemaId,
+            status = ActionConstants.RESPONSE_ERROR,
+            message = Some(ActionConstants.RESPONSE_ERROR_INVALID_JSON_MESSAGE)
+          )
+          BadRequest(Json.toJson(response))
+      }
     }
 
     val result = for {
@@ -56,9 +67,9 @@ private[controllers] final class SchemaControllerImpl @Inject()(scc: SchemaContr
     }
   }
 
-  private def convertToJsonNode(string: String) = Try(new ObjectMapper().readTree(string))
+  private def convertToJsonNode(string: String) = Try(Option(new ObjectMapper().readTree(string)))
 
-  implicit val responseWrites: Writes[Response] = (
+  private implicit val responseWrites: Writes[Response] = (
     (JsPath \ "action").write[String] and
       (JsPath \ "id").write[String] and
       (JsPath \ "status").write[String] and
@@ -72,6 +83,7 @@ object ActionConstants {
   val RESPONSE_ERROR = "error"
   val RESPONSE_ERROR_INVALID_JSON_MESSAGE = "Invalid JSON"
   val RESPONSE_ERROR_MISSING_JSON_MESSAGE = "Missing JSON schema"
+  val RESPONSE_ERROR_FAILED_TO_UPLOAD_JSON_SCHEMA = "Attempt to upload json schema failed"
 }
 
 private final case class Response(action: String, id: String, status: String, message: Option[String])
