@@ -7,7 +7,7 @@ import org.scalatestplus.play.PlaySpec
 import play.api.libs.json.Json
 import play.api.mvc.DefaultActionBuilder
 import play.api.test.FakeRequest
-import play.api.test.Helpers.{BAD_REQUEST, CREATED, GET, INTERNAL_SERVER_ERROR, POST, contentAsJson, defaultAwaitTimeout, status, stubControllerComponents}
+import play.api.test.Helpers.{BAD_REQUEST, CREATED, GET, INTERNAL_SERVER_ERROR, NOT_FOUND, POST, contentAsJson, defaultAwaitTimeout, status, stubControllerComponents}
 import repository.{FailedToSaveSchema, SchemaRepository}
 
 final class SchemaControllerImplSpec extends PlaySpec {
@@ -110,10 +110,22 @@ final class SchemaControllerImplSpec extends PlaySpec {
     }
   }
 
+  "downloadSchema" should {
+    "return the error payload for non-existing schema id" in {
+      val schemaId = "invalid-schema"
+      val mockSchemaRepository = mock[SchemaRepository]
+      when(mockSchemaRepository.fetchFile(schemaId)).thenReturn(None)
+      val controller = new SchemaControllerImpl(stubSchemaControllerComponents(mockSchemaRepository))
+      val result = controller.downloadSchema(schemaId)(FakeRequest(GET, ""))
+      status(result)(defaultAwaitTimeout) mustEqual NOT_FOUND
+      contentAsJson(result)(defaultAwaitTimeout) mustEqual Json.parse(s"""{"action":"${ActionConstants.ACTION_DOWNLOAD}","id":"$schemaId", "status":"${ActionConstants.RESPONSE_ERROR}", "message": "${ActionConstants.RESPONSE_ERROR_SCHEMA_NOT_FOUND}"}""")
+    }
+  }
+
   private def stubSchemaControllerComponents(mockSchemaRepository: SchemaRepository) = {
     val stub = stubControllerComponents()
     SchemaControllerComponents(
-      schemaDao = mockSchemaRepository,
+      schemaRepository = mockSchemaRepository,
       actionBuilder = DefaultActionBuilder(stub.parsers.default)(stub.executionContext),
       parsers = stub.parsers,
       messagesApi = stub.messagesApi,

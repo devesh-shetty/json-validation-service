@@ -16,7 +16,7 @@ private[controllers] final class SchemaControllerImpl @Inject()(scc: SchemaContr
       val optionalSchema = for {
         jsonNode <- node.toOption.flatten
         schema = Schema(schemaId, jsonNode)
-      } yield scc.schemaDao.save(schema)
+      } yield scc.schemaRepository.save(schema)
 
       optionalSchema match {
         case Some(savedSchemaResult) =>
@@ -67,6 +67,20 @@ private[controllers] final class SchemaControllerImpl @Inject()(scc: SchemaContr
     }
   }
 
+  override def downloadSchema(schemaId: String): Action[AnyContent] = Action {
+    scc.schemaRepository.fetchFile(schemaId) match {
+      case Some(file) => Ok.sendFile(file, inline = false)(scc.executionContext, scc.fileMimeTypes)
+      case None =>
+        val response = Response(
+          action = ActionConstants.ACTION_DOWNLOAD,
+          id = schemaId,
+          status = ActionConstants.RESPONSE_ERROR,
+          message = Some(ActionConstants.RESPONSE_ERROR_SCHEMA_NOT_FOUND)
+        )
+        NotFound(Json.toJson(response))
+    }
+  }
+
   private def convertToJsonNode(string: String) = Try(Option(new ObjectMapper().readTree(string)))
 
   private implicit val responseWrites: Writes[Response] = (
@@ -79,11 +93,13 @@ private[controllers] final class SchemaControllerImpl @Inject()(scc: SchemaContr
 
 object ActionConstants {
   val ACTION_UPLOAD = "uploadSchema"
+  val ACTION_DOWNLOAD = "downloadSchema"
   val RESPONSE_SUCCESS = "success"
   val RESPONSE_ERROR = "error"
   val RESPONSE_ERROR_INVALID_JSON_MESSAGE = "Invalid JSON"
   val RESPONSE_ERROR_MISSING_JSON_MESSAGE = "Missing JSON schema"
   val RESPONSE_ERROR_FAILED_TO_UPLOAD_JSON_SCHEMA = "Attempt to upload json schema failed"
+  val RESPONSE_ERROR_SCHEMA_NOT_FOUND = "Schema not found"
 }
 
 private final case class Response(action: String, id: String, status: String, message: Option[String])
