@@ -9,9 +9,11 @@ import repository.SchemaRepository
 @ImplementedBy(classOf[SchemaControllerImpl])
 trait SchemaController {
   def uploadSchema(schemaId: String): Action[AnyContent]
+
+  def downloadSchema(schemaId: String): Action[AnyContent]
 }
 
-case class SchemaControllerComponents @Inject()(schemaDao: SchemaRepository,
+case class SchemaControllerComponents @Inject()(schemaRepository: SchemaRepository,
                                                 actionBuilder: DefaultActionBuilder,
                                                 parsers: PlayBodyParsers,
                                                 messagesApi: MessagesApi,
