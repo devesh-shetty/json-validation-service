@@ -13,6 +13,8 @@ trait SchemaController {
   def downloadSchema(schemaId: String): Action[AnyContent]
 
   def validateSchemaWith(schemaId: String): Action[AnyContent]
+
+  def invalidOperation(): Action[AnyContent]
 }
 
 case class SchemaControllerComponents @Inject()(schemaRepository: SchemaRepository,
