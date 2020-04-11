@@ -9,5 +9,6 @@ final class SchemaRouter @Inject()(controller: SchemaController) extends SimpleR
   override def routes: Router.Routes = {
     case POST(p"/schema/$schemaId") => controller.uploadSchema(schemaId)
     case GET(p"/schema/$schemaId") => controller.downloadSchema(schemaId)
+    case POST(p"/validate/$schemaId") => controller.validateSchemaWith(schemaId)
   }
 }
