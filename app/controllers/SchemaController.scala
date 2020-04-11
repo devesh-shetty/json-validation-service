@@ -11,6 +11,8 @@ trait SchemaController {
   def uploadSchema(schemaId: String): Action[AnyContent]
 
   def downloadSchema(schemaId: String): Action[AnyContent]
+
+  def validateSchemaWith(schemaId: String): Action[AnyContent]
 }
 
 case class SchemaControllerComponents @Inject()(schemaRepository: SchemaRepository,
