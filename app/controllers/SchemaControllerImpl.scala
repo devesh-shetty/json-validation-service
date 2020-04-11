@@ -135,6 +135,10 @@ private[controllers] final class SchemaControllerImpl @Inject()(scc: SchemaContr
     }
   }
 
+  override def invalidOperation(): Action[AnyContent] = Action {
+    BadRequest("Invalid operation")
+  }
+
   private def stripNullValues(jsonNode: JsonNode): JsonNode = {
     val objectNode = jsonNode.asInstanceOf[ObjectNode]
     val fieldNames = objectNode.fields().asScala
